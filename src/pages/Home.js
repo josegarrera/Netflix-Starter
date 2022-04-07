@@ -1,13 +1,58 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import './Home.css';
 import {Logo} from '../images/Netflix';
-import {Button, ConnectButton, Icon, Modal, Tab, TabList} from 'web3uikit';
+import {
+	Button,
+	ConnectButton,
+	Icon,
+	Modal,
+	Tab,
+	TabList,
+	useNotification,
+} from 'web3uikit';
 import {movies} from '../helpers/library';
+import {useMoralis} from 'react-moralis';
 
 const Home = () => {
 	const [visible, setVisible] = useState(false);
 	const [selectedFilm, setSelectedFilm] = useState();
+	const [myMovies, setMyMovies] = useState();
+	const {isAuthenticated, Moralis, account} = useMoralis();
+
+	useEffect(() => {
+		async function fetchMyList() {
+			await Moralis.start({
+				serverUrl: 'https://f4kuh0pccnjp.usemoralis.com:2053/server',
+				appId: 'QPzJPABbDyijt2beccwbZDtjuXZ46x9VrzXzvpJ3',
+			}); //if getting errors add this
+
+			try {
+				const theList = await Moralis.Cloud.run('getMyList', {addrs: account});
+
+				const filterdA = movies.filter(function (e) {
+					return theList.indexOf(e.Name) > -1;
+				});
+
+				setMyMovies(filterdA);
+			} catch (error) {
+				console.error(error);
+			}
+		}
+
+		fetchMyList();
+	}, [account]);
+
+	const dispatch = useNotification();
+
+	const handleNewNotification = () => {
+		dispatch({
+			type: 'error',
+			message: 'Please, connect your crypto wallet',
+			title: 'Not authenticated',
+			position: 'topL',
+		});
+	};
 
 	return (
 		<>
@@ -38,6 +83,9 @@ const Home = () => {
 									text='Add to my list'
 									theme='translucent'
 									type='button'
+									onClick={() => {
+										console.log(myMovies);
+									}}
 								/>
 							</div>
 						</div>
@@ -81,20 +129,43 @@ const Home = () => {
 									alt={selectedFilm.Description}
 								></img>
 								<div className='modalPlayButton'>
-									<Link to='/player' state={selectedFilm.Movie}>
-										<Button
-											icon='chevronRightX2'
-											text='Play'
-											theme='secondary'
-											type='button'
-										/>
-									</Link>
-									<Button
-										icon='plus'
-										text='Add to my list'
-										theme='translucent'
-										type='button'
-									/>
+									{isAuthenticated ? (
+										<>
+											{' '}
+											<Link to='/player' state={selectedFilm.Movie}>
+												<Button
+													icon='chevronRightX2'
+													text='Play'
+													theme='secondary'
+													type='button'
+												/>
+											</Link>
+											<Button
+												icon='plus'
+												text='Add to my list'
+												theme='translucent'
+												type='button'
+											/>
+										</>
+									) : (
+										<>
+											<Button
+												icon='chevronRightX2'
+												text='Play'
+												theme='secondary'
+												type='button'
+												onClick={handleNewNotification}
+											/>
+
+											<Button
+												icon='plus'
+												text='Add to my list'
+												theme='translucent'
+												type='button'
+												onClick={handleNewNotification}
+											/>
+										</>
+									)}
 								</div>
 
 								<div className='movieInfo'>
